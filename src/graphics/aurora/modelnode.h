@@ -125,6 +125,11 @@ protected:
 	float *_vY; ///< Vertex coordinates, Y.
 	float *_vZ; ///< Vertex coordinates, Z.
 
+	// Vertex normals
+	float *_nX; ///< Vertex normals, X.
+	float *_nY; ///< Vertex normals, Y.
+	float *_nZ; ///< Vertex normals, Z.
+
 	// Texture cordinates
 	float *_tX; ///< Texture cordinates, X.
 	float *_tY; ///< Texture cordinates, Y.

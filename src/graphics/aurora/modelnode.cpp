@@ -209,7 +209,7 @@ void ModelNode::inheritGeometry(ModelNode &node) const {
 		return;
 
 	memcpy(node._coords, _coords,
-			(3 * 3 * _faceCount + 2 * 3 * _faceCount * _textures.size()) * sizeof(float));
+			(6 * 3 * _faceCount + 2 * 3 * _faceCount * _textures.size()) * sizeof(float));
 
 	memcpy(node._smoothGroups, _smoothGroups, _faceCount * sizeof(uint32));
 	memcpy(node._material    , _material    , _faceCount * sizeof(uint32));
@@ -342,14 +342,21 @@ bool ModelNode::createFaces(uint32 count) {
 
 	_faceCount = count;
 
-	_coords = new float[3 * 3 * _faceCount + 2 * 3 * _faceCount * textureCount];
+	const uint32 vertCount = 3 * _faceCount;
 
-	_vX = _coords + 0 * 3 * _faceCount;
-	_vY = _coords + 1 * 3 * _faceCount;
-	_vZ = _coords + 2 * 3 * _faceCount;
+	_coords = new float[6 * vertCount + 2 * vertCount * textureCount];
+	memset(_coords, 0,  6 * vertCount + 2 * vertCount * textureCount * sizeof(float));
 
-	_tX = _coords + 3 * 3 * _faceCount + 0 * 3 * _faceCount * textureCount;
-	_tY = _coords + 3 * 3 * _faceCount + 1 * 3 * _faceCount * textureCount;
+	_vX = _coords + 0 * vertCount;
+	_vY = _coords + 1 * vertCount;
+	_vZ = _coords + 2 * vertCount;
+
+	_nX = _coords + 3 * vertCount;
+	_nY = _coords + 4 * vertCount;
+	_nZ = _coords + 5 * vertCount;
+
+	_tX = _coords + 6 * vertCount + 0 * vertCount * textureCount;
+	_tY = _coords + 6 * vertCount + 1 * vertCount * textureCount;
 
 	_smoothGroups = new uint32[_faceCount];
 	_material     = new uint32[_faceCount];
@@ -432,17 +439,23 @@ void ModelNode::renderGeometry() {
 	const float *vX = _vX;
 	const float *vY = _vY;
 	const float *vZ = _vZ;
+	const float *nX = _nX;
+	const float *nY = _nY;
+	const float *nZ = _nZ;
 	const float *tX = _tX;
 	const float *tY = _tY;
 
 	glBegin(GL_TRIANGLES);
 	for (uint32 f = 0; f < _faceCount; f++, vX += 3, vY += 3, vZ += 3,
-	     tX += 3 * textureCount, tY += 3 * textureCount) {
+	                                   nX += 3, nY += 3, nZ += 3,
+	                                   tX += 3 * textureCount, tY += 3 * textureCount) {
 
 		// Texture vertex A
 		for (uint32 t = 0; t < textureCount; t++)
 			TextureMan.textureCoord2f(t, tX[3 * t + 0], tY[3 * t + 0]);
 
+		// Normal vertex A
+		glNormal3f(nX[0], nY[0], nZ[0]);
 		// Geometry vertex A
 		glVertex3f(vX[0], vY[0], vZ[0]);
 
@@ -451,6 +464,8 @@ void ModelNode::renderGeometry() {
 		for (uint32 t = 0; t < textureCount; t++)
 			TextureMan.textureCoord2f(t, tX[3 * t + 1], tY[3 * t + 1]);
 
+		// Normal vertex B
+		glNormal3f(nX[1], nY[1], nZ[1]);
 		// Geometry vertex B
 		glVertex3f(vX[1], vY[1], vZ[1]);
 
@@ -459,6 +474,8 @@ void ModelNode::renderGeometry() {
 		for (uint32 t = 0; t < textureCount; t++)
 			TextureMan.textureCoord2f(t, tX[3 * t + 2], tY[3 * t + 2]);
 
+		// Normal vertex C
+		glNormal3f(nX[2], nY[2], nZ[2]);
 		// Geometry vertex C
 		glVertex3f(vX[2], vY[2], vZ[2]);
 	}
