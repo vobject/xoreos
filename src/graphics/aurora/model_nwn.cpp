@@ -698,7 +698,7 @@ void ModelNode_NWN_Binary::readMesh(Model_NWN::ParserContext &ctx) {
 	textureVertexOffset[2] = ctx.mdl->readUint32LE();
 	textureVertexOffset[3] = ctx.mdl->readUint32LE();
 
-	ctx.mdl->skip(4); // Vertex normals
+	uint32 normalOffset = ctx.mdl->readUint32LE();
 	ctx.mdl->skip(4); // Vertex RGBA colors
 
 	ctx.mdl->skip(6 * 4); // Texture animation data
@@ -742,6 +742,23 @@ void ModelNode_NWN_Binary::readMesh(Model_NWN::ParserContext &ctx) {
 			vX[i] = ctx.mdl->readIEEEFloatLE();
 			vY[i] = ctx.mdl->readIEEEFloatLE();
 			vZ[i] = ctx.mdl->readIEEEFloatLE();
+		}
+	}
+
+	// Read normals coordinates
+	bool hasNormals = normalOffset != 0xFFFFFFFF;
+	std::vector<float> nX, nY, nZ;
+	if (hasNormals) {
+		ctx.mdl->seekTo(ctx.offRawData + normalOffset);
+
+		nX.resize(vertexCount);
+		nY.resize(vertexCount);
+		nZ.resize(vertexCount);
+
+		for (uint32 i = 0; i < vertexCount; i++) {
+			nX[i] = ctx.mdl->readIEEEFloatLE();
+			nY[i] = ctx.mdl->readIEEEFloatLE();
+			nZ[i] = ctx.mdl->readIEEEFloatLE();
 		}
 	}
 
@@ -798,6 +815,21 @@ void ModelNode_NWN_Binary::readMesh(Model_NWN::ParserContext &ctx) {
 		_vZ[3 * i + 2] = v3 < vZ.size() ? vZ[v3] : 0.0;
 		_boundBox.add(_vX[3 * i + 2], _vY[3 * i + 2], _vZ[3 * i + 2]);
 
+		// Vertex normals
+		if (hasNormals) {
+			_nX[3 * i + 0] = v1 < nX.size() ? nX[v1] : 0.0;
+			_nY[3 * i + 0] = v1 < nY.size() ? nY[v1] : 0.0;
+			_nZ[3 * i + 0] = v1 < nZ.size() ? nZ[v1] : 0.0;
+
+			_nX[3 * i + 1] = v2 < nX.size() ? nX[v2] : 0.0;
+			_nY[3 * i + 1] = v2 < nY.size() ? nY[v2] : 0.0;
+			_nZ[3 * i + 1] = v2 < nZ.size() ? nZ[v2] : 0.0;
+
+			_nX[3 * i + 2] = v3 < nX.size() ? nX[v3] : 0.0;
+			_nY[3 * i + 2] = v3 < nY.size() ? nY[v3] : 0.0;
+			_nZ[3 * i + 2] = v3 < nZ.size() ? nZ[v3] : 0.0;
+		}
+
 		// Texture coordinates
 		for (uint32 t = 0; t < textureCount; t++) {
 			_tX[3 * textureCount * i + 3 * t + 0] = v1 < tX[t].size() ? tX[t][v1] : 0.0;
@@ -811,6 +843,9 @@ void ModelNode_NWN_Binary::readMesh(Model_NWN::ParserContext &ctx) {
 		}
 
 	}
+
+	if (!hasNormals)
+		calculateNormals();
 
 	createCenter();
 
@@ -1208,6 +1243,7 @@ void ModelNode_NWN_ASCII::processMesh(Mesh &mesh) {
 
 	}
 
+	calculateNormals();
 	createCenter();
 }
 
