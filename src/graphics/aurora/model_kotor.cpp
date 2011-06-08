@@ -524,13 +524,20 @@ void ModelNode_KotOR::readMesh(Model_KotOR::ParserContext &ctx) {
 	loadTextures(textures);
 
 
-	// Read vertex coordinates
+	// Read vertices
 
-	std::vector<float> vX, vY, vZ;
+	std::vector<float> vX, vY, vZ, nX, nY, nZ;
 
 	vX.resize(vertexCount);
 	vY.resize(vertexCount);
 	vZ.resize(vertexCount);
+
+	bool hasNormals = offNormals != 0xFFFFFFFF;
+	if (hasNormals) {
+		nX.resize(vertexCount);
+		nY.resize(vertexCount);
+		nZ.resize(vertexCount);
+	}
 
 	std::vector< std::vector<float> > tX, tY;
 
@@ -545,10 +552,21 @@ void ModelNode_KotOR::readMesh(Model_KotOR::ParserContext &ctx) {
 	for (int i = 0; i < vertexCount; i++) {
 		ctx.mdx->seekTo(offNodeData + i * mdxStructSize);
 
+		// Vertex coordinates
 		vX[i] = ctx.mdx->readIEEEFloatLE();
 		vY[i] = ctx.mdx->readIEEEFloatLE();
 		vZ[i] = ctx.mdx->readIEEEFloatLE();
 
+		// Vertex normals
+		if (hasNormals) {
+			ctx.mdx->seekTo(offNodeData + i * mdxStructSize + offNormals);
+
+			nX[i] = ctx.mdx->readIEEEFloatLE();
+			nY[i] = ctx.mdx->readIEEEFloatLE();
+			nZ[i] = ctx.mdx->readIEEEFloatLE();
+		}
+
+		// Texture coordinates
 		for (uint16 t = 0; t < textureCount; t++) {
 			if (offUV[t] != 0xFFFFFFFF) {
 				ctx.mdx->seekTo(offNodeData + i * mdxStructSize + offUV[t]);
@@ -598,6 +616,21 @@ void ModelNode_KotOR::readMesh(Model_KotOR::ParserContext &ctx) {
 		_vZ[3 * i + 2] = v3 < vZ.size() ? vZ[v3] : 0.0;
 		_boundBox.add(_vX[3 * i + 2], _vY[3 * i + 2], _vZ[3 * i + 2]);
 
+		// Vertex normals
+		if (hasNormals) {
+			_nX[3 * i + 0] = v1 < nX.size() ? nX[v1] : 0.0;
+			_nY[3 * i + 0] = v1 < nY.size() ? nY[v1] : 0.0;
+			_nZ[3 * i + 0] = v1 < nZ.size() ? nZ[v1] : 0.0;
+
+			_nX[3 * i + 1] = v2 < nX.size() ? nX[v2] : 0.0;
+			_nY[3 * i + 1] = v2 < nY.size() ? nY[v2] : 0.0;
+			_nZ[3 * i + 1] = v2 < nZ.size() ? nZ[v2] : 0.0;
+
+			_nX[3 * i + 2] = v3 < nX.size() ? nX[v3] : 0.0;
+			_nY[3 * i + 2] = v3 < nY.size() ? nY[v3] : 0.0;
+			_nZ[3 * i + 2] = v3 < nZ.size() ? nZ[v3] : 0.0;
+		}
+
 		// Texture coordinates
 		for (uint16 t = 0 ; t < textureCount; t++) {
 			_tX[3 * textureCount * i + 3 * t + 0] = v1 < tX[t].size() ? tX[t][v1] : 0.0;
@@ -610,6 +643,9 @@ void ModelNode_KotOR::readMesh(Model_KotOR::ParserContext &ctx) {
 			_tY[3 * textureCount * i + 3 * t + 2] = v3 < tY[t].size() ? tY[t][v3] : 0.0;
 		}
 	}
+
+	if (!hasNormals)
+		calculateNormals();
 
 	createCenter();
 
