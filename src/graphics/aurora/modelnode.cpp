@@ -372,6 +372,34 @@ void ModelNode::createBound() {
 	createCenter();
 }
 
+void ModelNode::calculateNormals() {
+	const float *vX = _vX;
+	const float *vY = _vY;
+	const float *vZ = _vZ;
+	      float *nX = _nX;
+	      float *nY = _nY;
+	      float *nZ = _nZ;
+
+	for (uint32 f = 0; f < _faceCount; f++, vX += 3, vY += 3, vZ += 3,
+	                                        nX += 3, nY += 3, nZ += 3) {
+
+		const float u[3] = {vX[1] - vX[0], vY[1] - vY[0], vZ[1] - vZ[0]};
+		const float v[3] = {vX[2] - vX[0], vY[2] - vY[0], vZ[2] - vZ[0]};
+
+		const float x = (u[1] * v[2]) - (u[2] * v[1]);
+		const float y = (u[2] * v[0]) - (u[0] * v[2]);
+		const float z = (u[0] * v[1]) - (u[1] * v[0]);
+
+		float length = sqrt((x * x) + (y * y) + (z * z));
+		if (length == 0.0f)
+			length = 1.0f;
+
+		nX[0] = nX[1] = nX[2] = x / length;
+		nY[0] = nY[1] = nY[2] = y / length;
+		nZ[0] = nZ[1] = nZ[2] = z / length;
+	}
+}
+
 void ModelNode::createCenter() {
 
 	float minX, minY, minZ, maxX, maxY, maxZ;

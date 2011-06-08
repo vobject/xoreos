@@ -194,6 +194,7 @@ protected:
 	void loadTextures(const std::vector<Common::UString> &textures);
 	bool createFaces(uint32 count);
 	void createBound();
+	void calculateNormals();
 	void createCenter();
 
 	void render(RenderPass pass);
