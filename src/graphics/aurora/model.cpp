@@ -218,6 +218,22 @@ void Model::setRotation(float x, float y, float z) {
 	GfxMan.unlockFrame();
 }
 
+void Model::getCenter(float &x, float &y, float &z) {
+	x = _center[0] * _modelScale[0];
+	y = _center[1] * _modelScale[1];
+	z = _center[2] * _modelScale[2];
+}
+
+void Model::getAbsoluteCenter(float &x, float &y, float &z) {
+	Common::TransformationMatrix center = _absolutePosition;
+
+	center.translate(_center[0], _center[1], _center[2]);
+
+	x = center.getX();
+	y = center.getY();
+	z = center.getZ();
+}
+
 void Model::move(float x, float y, float z) {
 	x /= _modelScale[0];
 	y /= _modelScale[1];

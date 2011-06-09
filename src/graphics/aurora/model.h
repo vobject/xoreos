@@ -96,6 +96,11 @@ public:
 	/** Set the current rotation of the model. */
 	void setRotation(float x, float y, float z);
 
+	/** Get the model's center position. */
+	void getCenter(float &x, float &y, float &z);
+	/** Get the model's center position after translate/rotate. */
+	void getAbsoluteCenter(float &x, float &y, float &z);
+
 	/** Move the model, relative to its current position. */
 	void move  (float x, float y, float z);
 	/** Rotate the model, relative to its current rotation. */
