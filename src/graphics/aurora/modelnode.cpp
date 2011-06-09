@@ -135,6 +135,16 @@ void ModelNode::getAbsolutePosition(float &x, float &y, float &z) const {
 	z = _absolutePosition.getZ() * _model->_modelScale[2];
 }
 
+void ModelNode::getWorldPosition(float &x, float &y, float &z) const {
+	Common::TransformationMatrix pos = _model->_absolutePosition;
+
+	pos.transform(_absolutePosition);
+
+	x = pos.getX();
+	y = pos.getY();
+	z = pos.getZ();
+}
+
 void ModelNode::setPosition(float x, float y, float z) {
 	GfxMan.lockFrame();
 
