@@ -46,6 +46,7 @@
 
 #include "graphics/queueman.h"
 #include "graphics/graphics.h"
+#include "graphics/lightman.h"
 
 #include "sound/sound.h"
 
@@ -277,6 +278,7 @@ void deinit() {
 
 	Sound::SoundManager::destroy();
 
+	Graphics::LightManager::destroy();
 	Graphics::GraphicsManager::destroy();
 	Graphics::QueueManager::destroy();
 

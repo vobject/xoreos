@@ -7,6 +7,7 @@ noinst_LTLIBRARIES = libgraphics.la
 noinst_HEADERS = types.h \
                  util.h \
                  graphics.h \
+                 lightman.h \
                  fpscounter.h \
                  cursor.h \
                  queueman.h \
@@ -22,6 +23,7 @@ noinst_HEADERS = types.h \
                  ttf.h
 
 libgraphics_la_SOURCES = graphics.cpp \
+                         lightman.cpp \
                          fpscounter.cpp \
                          cursor.cpp \
                          queueman.cpp \
