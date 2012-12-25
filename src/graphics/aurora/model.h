@@ -72,6 +72,9 @@ public:
 	/** Should a bounding box be drawn around this model? */
 	void drawBound(bool enabled);
 
+	void show();
+	void hide();
+
 
 	/** Is that point within the model's bounding box? */
 	bool isIn(float x, float y) const;
@@ -240,12 +243,14 @@ protected:
 
 private:
 	bool _needBuild[kRenderPassAll];
+	bool _needEvalLights;
 	bool _drawBound;
 	float _elapsedTime; ///< Track animation duration
 
 	ListID _lists; ///< OpenGL display lists for the model
 
 
+	void evaluateLights();
 	bool buildList(RenderPass pass);
 
 	void createStateNamesList(); ///< Create the list of all state names.

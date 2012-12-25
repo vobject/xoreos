@@ -461,6 +461,62 @@ void ModelNode::orderChildren() {
 		(*c)->orderChildren();
 }
 
+void ModelNode::clearLights() {
+	_lighting.clear();
+}
+
+#define SQR(x) ((x) * (x))
+void ModelNode::evaluateLights(Common::TransformationMatrix position) {
+	clearLights();
+
+	_lighting.reserve(_faceCount);
+	for (uint32 i = 0; i < _faceCount; i++)
+		_lighting.push_back(LightMan.createLighting());
+
+	// Transform by our position/orientation/rotation
+	position.translate(_position[0], _position[1], _position[2]);
+	position.rotate(_orientation[3], _orientation[0], _orientation[1], _orientation[2]);
+
+	position.rotate(_rotation[0], 1.0, 0.0, 0.0);
+	position.rotate(_rotation[1], 0.0, 1.0, 0.0);
+	position.rotate(_rotation[2], 0.0, 0.0, 1.0);
+
+	// Evaluate the lighting for each vertex
+
+	const float *vX = _vX;
+	const float *vY = _vY;
+	const float *vZ = _vZ;
+
+	for (uint32 i = 0; i < _faceCount; i++, vX += 3, vY += 3, vZ += 3) {
+		const float a = sqrt(SQR(vX[1] - vX[2]) + SQR(vY[1] - vY[2]) + SQR(vZ[1] - vZ[2]));
+		const float b = sqrt(SQR(vX[0] - vX[2]) + SQR(vY[0] - vY[2]) + SQR(vZ[0] - vZ[2]));
+		const float c = sqrt(SQR(vX[0] - vX[1]) + SQR(vY[0] - vY[1]) + SQR(vZ[0] - vZ[1]));
+		const float p = a + b + c;
+
+		const float x = (a * vX[0] + b * vX[1] + c * vX[2]) / p;
+		const float y = (a * vY[0] + b * vY[1] + c * vY[2]) / p;
+		const float z = (a * vZ[0] + b * vZ[1] + c * vZ[2]) / p;
+
+		/*
+		const float x = _center[0];
+		const float y = _center[1];
+		const float z = _center[2];
+		*/
+
+
+		Common::TransformationMatrix vPos = position;
+
+		vPos.translate(x, y, z);
+
+		LightMan.evaluateLighting(_lighting[i], vPos.getX(), vPos.getY(), vPos.getZ());
+	}
+
+	// Recurse into the children
+	for (std::list<ModelNode *>::iterator c = _children.begin(); c != _children.end(); ++c)
+		(*c)->evaluateLights(position);
+}
+#undef SQR
+
 void ModelNode::renderGeometry() {
 	// Enable all needed texture units
 	for (uint32 t = 0; t < _textures.size(); t++) {
@@ -483,10 +539,15 @@ void ModelNode::renderGeometry() {
 	const float *tX = _tX;
 	const float *tY = _tY;
 
-	glBegin(GL_TRIANGLES);
 	for (uint32 f = 0; f < _faceCount; f++, vX += 3, vY += 3, vZ += 3,
 	                                   nX += 3, nY += 3, nZ += 3,
 	                                   tX += 3 * textureCount, tY += 3 * textureCount) {
+
+
+		// Lighting vertex A
+		LightMan.renderLights(_lighting[f]);
+
+	glBegin(GL_TRIANGLES);
 
 		// Texture vertex A
 		for (uint32 t = 0; t < textureCount; t++)
@@ -498,6 +559,9 @@ void ModelNode::renderGeometry() {
 		glVertex3f(vX[0], vY[0], vZ[0]);
 
 
+		// Lighting vertex B
+		//LightMan.renderLights(_lighting[3 * f + 1]);
+
 		// Texture vertex B
 		for (uint32 t = 0; t < textureCount; t++)
 			TextureMan.textureCoord2f(t, tX[3 * t + 1], tY[3 * t + 1]);
@@ -508,6 +572,9 @@ void ModelNode::renderGeometry() {
 		glVertex3f(vX[1], vY[1], vZ[1]);
 
 
+		// Lighting vertex C
+		//LightMan.renderLights(_lighting[3 * f + 2]);
+
 		// Texture vertex C
 		for (uint32 t = 0; t < textureCount; t++)
 			TextureMan.textureCoord2f(t, tX[3 * t + 2], tY[3 * t + 2]);
@@ -516,8 +583,8 @@ void ModelNode::renderGeometry() {
 		glNormal3f(nX[2], nY[2], nZ[2]);
 		// Geometry vertex C
 		glVertex3f(vX[2], vY[2], vZ[2]);
-	}
 	glEnd();
+	}
 
 
 	// Disable the texture units again

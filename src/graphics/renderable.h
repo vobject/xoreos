@@ -94,6 +94,8 @@ protected:
 	double _distance; ///< The distance of the object from the viewer.
 
 	void resort();
+
+	friend class LightManager;
 };
 
 } // End of namespace Graphics

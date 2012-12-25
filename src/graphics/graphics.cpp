@@ -44,6 +44,7 @@
 
 #include "graphics/graphics.h"
 #include "graphics/util.h"
+#include "graphics/lightman.h"
 #include "graphics/cursor.h"
 #include "graphics/fpscounter.h"
 #include "graphics/queueman.h"
@@ -805,6 +806,17 @@ bool GraphicsManager::renderWorld() {
 	memcpy(cOrient, CameraMan.getOrientation(), 3 * sizeof(float));
 	CameraMan.unlock();
 
+	Common::TransformationMatrix camera;
+
+	// Apply camera orientation
+	camera.rotate(-cOrient[0], 1.0, 0.0, 0.0);
+	camera.rotate( cOrient[1], 0.0, 1.0, 0.0);
+	camera.rotate(-cOrient[2], 0.0, 0.0, 1.0);
+
+	// Apply camera position
+	camera.translate(-cPos[0], -cPos[1], cPos[2]);
+
+
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
@@ -813,13 +825,7 @@ bool GraphicsManager::renderWorld() {
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	// Apply camera orientation
-	glRotatef(-cOrient[0], 1.0, 0.0, 0.0);
-	glRotatef( cOrient[1], 0.0, 1.0, 0.0);
-	glRotatef(-cOrient[2], 0.0, 0.0, 1.0);
-
-	// Apply camera position
-	glTranslatef(-cPos[0], -cPos[1], cPos[2]);
+	glMultMatrixf(camera.get());
 
 	QueueMan.lockQueue(kQueueVisibleWorldObject);
 	const std::list<Queueable *> &objects = QueueMan.getQueue(kQueueVisibleWorldObject);
@@ -843,12 +849,18 @@ bool GraphicsManager::renderWorld() {
 		static_cast<Renderable *>(*o)->advanceTime(elapsedTime);
 	}
 
+	LightMan.setCamera(camera);
+	LightMan.renderLights();
+
 	// Draw opaque objects
 	for (std::list<Queueable *>::const_reverse_iterator o = objects.rbegin();
 	     o != objects.rend(); ++o) {
 
 		glPushMatrix();
-		static_cast<Renderable *>(*o)->render(kRenderPassOpaque);
+
+		Renderable *r = static_cast<Renderable *>(*o);
+		r->render(kRenderPassOpaque);
+
 		glPopMatrix();
 	}
 
@@ -857,9 +869,15 @@ bool GraphicsManager::renderWorld() {
 	     o != objects.rend(); ++o) {
 
 		glPushMatrix();
-		static_cast<Renderable *>(*o)->render(kRenderPassTransparent);
+
+		Renderable *r = static_cast<Renderable *>(*o);
+		r->render(kRenderPassTransparent);
+
 		glPopMatrix();
 	}
+
+	glDisable(GL_LIGHTING);
+	LightMan.showLights();
 
 	QueueMan.unlockQueue(kQueueVisibleWorldObject);
 	return true;

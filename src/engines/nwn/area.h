@@ -42,6 +42,8 @@
 
 #include "aurora/nwscript/object.h"
 
+#include "graphics/lightman.h"
+
 #include "graphics/aurora/types.h"
 
 #include "sound/types.h"
@@ -144,6 +146,8 @@ private:
 		const Tileset::Tile *tile; ///< The actual tile within the tileset.
 
 		Graphics::Aurora::Model *model; ///< The tile's model.
+
+		Graphics::LightHandle light[4]; ///< The tile's lights.
 	};
 
 	typedef std::list<Engines::NWN::Object *> ObjectList;
@@ -231,6 +235,9 @@ private:
 
 	void loadTiles();
 	void unloadTiles();
+
+	void createLight(Graphics::LightHandle &light, Graphics::Aurora::Model *model,
+	                 uint8 color, const Common::UString &nodeName);
 
 	// Highlight / active helpers
 

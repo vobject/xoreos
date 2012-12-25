@@ -53,6 +53,8 @@ Model::Model(ModelType type) : Renderable((RenderableType) type),
 	for (int i = 0; i < kRenderPassAll; i++)
 		_needBuild[i] = true;
 
+	_needEvalLights = true;
+
 	_position[0] = 0.0; _position[1] = 0.0; _position[2] = 0.0;
 	_rotation[0] = 0.0; _rotation[1] = 0.0; _rotation[2] = 0.0;
 
@@ -166,6 +168,20 @@ Animation *Model::selectDefaultAnimation() const {
 	}
 
 	return 0;
+}
+
+void Model::show() {
+	Renderable::show();
+
+	needRebuild();
+}
+
+void Model::hide() {
+	Renderable::hide();
+
+	for (StateList::iterator s = _stateList.begin(); s != _stateList.end(); ++s)
+		for (NodeList::iterator n = (*s)->nodeList.begin(); n != (*s)->nodeList.end(); ++n)
+			(*n)->clearLights();
 }
 
 void Model::getPosition(float &x, float &y, float &z) const {
@@ -417,9 +433,34 @@ void Model::calculateDistance() {
 	_distance = x + y + z;
 }
 
+void Model::evaluateLights() {
+	Common::TransformationMatrix position;
+
+	// Apply our global model transformation
+
+	position.scale(_modelScale[0], _modelScale[1], _modelScale[2]);
+
+	if (_type == kModelTypeObject)
+		// Aurora world objects have a rotated axis
+		position.rotate(90.0, -1.0, 0.0, 0.0);
+
+	position.translate(_position[0], _position[1], _position[2]);
+
+	position.rotate( _rotation[0], 1.0, 0.0, 0.0);
+	position.rotate( _rotation[1], 0.0, 1.0, 0.0);
+	position.rotate(-_rotation[2], 0.0, 0.0, 1.0);
+
+	for (NodeList::iterator n = _currentState->rootNodes.begin();
+	     n != _currentState->rootNodes.end(); ++n) {
+
+		(*n)->evaluateLights(position);
+	}
+
+	_needEvalLights = false;
+}
+
 bool Model::buildList(RenderPass pass) {
-	if (!_needBuild[pass])
-		return false;
+		evaluateLights();
 
 	if (_lists == 0)
 		_lists = glGenLists(kRenderPassAll);
@@ -617,6 +658,8 @@ void Model::finalize() {
 void Model::needRebuild() {
 	for (int i = 0; i < kRenderPassAll; i++)
 		_needBuild[i] = true;
+
+	_needEvalLights = true;
 }
 
 void Model::createStateNamesList() {

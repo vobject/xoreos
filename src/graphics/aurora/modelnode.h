@@ -38,6 +38,7 @@
 #include "common/boundingbox.h"
 
 #include "graphics/types.h"
+#include "graphics/lightman.h"
 
 #include "graphics/aurora/types.h"
 #include "graphics/aurora/textureman.h"
@@ -136,6 +137,9 @@ protected:
 	float *_tX; ///< Texture cordinates, X.
 	float *_tY; ///< Texture cordinates, Y.
 
+	// Vertex lighting
+	std::vector<LightingHandle> _lighting; ///< Lighting handles.
+
 	uint32 *_smoothGroups; ///< Face smooth groups.
 	uint32 *_material;     ///< Face materials.
 
@@ -208,6 +212,8 @@ private:
 
 	void orderChildren();
 
+	void clearLights();
+	void evaluateLights(Common::TransformationMatrix position);
 	void renderGeometry();
 
 

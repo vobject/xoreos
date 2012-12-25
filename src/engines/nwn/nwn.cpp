@@ -42,6 +42,8 @@
 
 #include "events/events.h"
 
+#include "graphics/lightman.h"
+
 #include "graphics/aurora/cursorman.h"
 #include "graphics/aurora/fontman.h"
 #include "graphics/aurora/fps.h"
@@ -143,6 +145,8 @@ void NWNEngine::run(const Common::UString &target) {
 		_fps = new Graphics::Aurora::FPS(FontMan.get(Graphics::Aurora::kSystemFontMono, 13));
 		_fps->show();
 	}
+
+	LightMan.enableLighting(true);
 
 	mainMenuLoop();
 

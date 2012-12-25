@@ -35,6 +35,7 @@
 #include "common/types.h"
 #include "common/singleton.h"
 #include "common/mutex.h"
+#include "common/matrix.h"
 
 #include "graphics/types.h"
 
@@ -81,14 +82,18 @@ public:
 
 	/** Create a lighting. */
 	LightingHandle createLighting();
-	/** Evaluate the lightings for this position. */
+	/** Evaluate the lighting for this position. */
 	void evaluateLighting(LightingHandle &lighting, float x, float y, float z);
+	/** Update all lightings. */
+	void updateLighting();
 
 	// To be called from the renderer in the main thread.
 
+	void setCamera(const Common::Matrix &camera);
+
 	void showLights();
 	void renderLights();
-	void renderLights(const Renderable &r);
+	void renderLights(const LightingHandle &lighting);
 
 private:
 	struct Light {
@@ -107,6 +112,8 @@ private:
 
 	struct Lighting {
 		uint32 referenceCount;
+
+		float position[3];
 
 		std::list<LightHandle> lights;
 
@@ -128,11 +135,15 @@ private:
 	LightList _lights;
 	LightingList _lightings;
 
+	Common::Matrix _camera;
+
 
 	void assign(LightHandle &light, const LightHandle &from);
 	void assign(LightingHandle &lighting, const LightingHandle &from);
 	void release(LightHandle &light);
 	void release(LightingHandle &lighting);
+
+	void evaluateLighting(Lighting &lighting);
 
 
 	friend class LightHandle;
