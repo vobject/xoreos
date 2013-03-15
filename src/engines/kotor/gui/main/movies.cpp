@@ -27,6 +27,12 @@
  *  The movies menu.
  */
 
+#include "common/util.h"
+
+#include "aurora/2dafile.h"
+#include "aurora/2dareg.h"
+#include "aurora/talkman.h"
+
 #include "engines/aurora/widget.h"
 
 #include "engines/kotor/gui/main/movies.h"
@@ -35,8 +41,15 @@ namespace Engines {
 
 namespace KotOR {
 
+bool MoviesMenu::MovieInfo::operator <(const MovieInfo &rhs) const {
+	 return order < rhs.order;
+}
+
+
 MoviesMenu::MoviesMenu() {
 	load("titlemovie");
+
+	updateMovies();
 }
 
 MoviesMenu::~MoviesMenu() {
@@ -47,6 +60,29 @@ void MoviesMenu::callbackActive(Widget &widget) {
 		_returnCode = 1;
 		return;
 	}
+}
+
+void MoviesMenu::updateMovies() {
+	const Aurora::TwoDAFile &movies = TwoDAReg.get("movies");
+
+	for (uint i = 0; i < movies.getRowCount(); i++) {
+		const uint32 strRef = movies.getRow(i).getInt("strrefname");
+		const Common::UString name = TalkMan.getString(strRef);
+		const uint order = movies.getRow(i).getInt("order");
+
+		if (name.empty() || !order)
+			// Invalid entry. Either because it does not have a name or a valid
+			// order ("****"). It will not have a video file.
+			continue;
+
+		MovieInfo movie;
+		movie.name = name;
+		movie.order = order;
+		movie.showAlways = (movies.getRow(i).getInt("alwaysshow") == 0) ? false : true;
+
+		_movies.push_back(movie);
+	}
+	std::sort(_movies.begin(), _movies.end());
 }
 
 } // End of namespace KotOR

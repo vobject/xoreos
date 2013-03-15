@@ -44,6 +44,19 @@ public:
 
 protected:
 	void callbackActive(Widget &widget);
+
+private:
+	struct MovieInfo {
+		Common::UString name;
+		uint32 order;
+		bool showAlways;
+
+		bool operator<(const MovieInfo &rhs) const;
+	};
+
+	std::vector<MovieInfo> _movies;
+
+	void updateMovies();
 };
 
 } // End of namespace KotOR
