@@ -32,8 +32,13 @@
 #include "aurora/2dafile.h"
 #include "aurora/2dareg.h"
 #include "aurora/talkman.h"
+#include "aurora/resman.h"
 
+#include "engines/aurora/util.h"
 #include "engines/aurora/widget.h"
+
+#include "engines/kotor/gui/widgets/label.h"
+#include "engines/kotor/gui/widgets/listbox.h"
 
 #include "engines/kotor/gui/main/movies.h"
 
@@ -41,21 +46,39 @@ namespace Engines {
 
 namespace KotOR {
 
+MoviesMenu::MovieInfo::MovieInfo() : order(-1), showAlways(true) {
+}
+
 bool MoviesMenu::MovieInfo::operator <(const MovieInfo &rhs) const {
 	 return order < rhs.order;
 }
 
 
-MoviesMenu::MoviesMenu() {
+MoviesMenu::MoviesMenu() : _listbox(0) {
 	load("titlemovie");
 
-	updateMovies();
+	_listbox = getListBox("LB_MOVIES", true);
 }
 
 MoviesMenu::~MoviesMenu() {
 }
 
+void MoviesMenu::show() {
+	GUI::show();
+
+	updateMovies();
+	listVideos();
+
+	// TODO: Fix positioning of listbox and its elements.
+	_listbox->setPosition(0.0, 225.0, 0);
+}
+
 void MoviesMenu::callbackActive(Widget &widget) {
+	if (widget.getTag() == "LB_MOVIES") {
+		playSelection();
+		return;
+	}
+
 	if (widget.getTag() == "BTN_BACK") {
 		_returnCode = 1;
 		return;
@@ -63,26 +86,65 @@ void MoviesMenu::callbackActive(Widget &widget) {
 }
 
 void MoviesMenu::updateMovies() {
+	_movies.clear();
+
+	std::list<Aurora::ResourceManager::ResourceID> movieFiles;
+	ResMan.getAvailableResources(Aurora::kResourceVideo, movieFiles);
+
+	for (std::list<Aurora::ResourceManager::ResourceID>::const_iterator it = movieFiles.begin();
+		 it != movieFiles.end(); it++) {
+		addMovie(it->name);
+	}
+	std::sort(_movies.begin(), _movies.end());
+}
+
+void MoviesMenu::addMovie(const Common::UString &filename) {
 	const Aurora::TwoDAFile &movies = TwoDAReg.get("movies");
 
 	for (uint i = 0; i < movies.getRowCount(); i++) {
 		const uint32 strRef = movies.getRow(i).getInt("strrefname");
-		const Common::UString name = TalkMan.getString(strRef);
-		const uint order = movies.getRow(i).getInt("order");
-
-		if (name.empty() || !order)
-			// Invalid entry. Either because it does not have a name or a valid
-			// order ("****"). It will not have a video file.
-			continue;
 
 		MovieInfo movie;
-		movie.name = name;
-		movie.order = order;
+		movie.name = TalkMan.getString(strRef);
+		movie.filename = movies.getRow(i).getName();
+		movie.order = movies.getRow(i).getInt("order");
 		movie.showAlways = (movies.getRow(i).getInt("alwaysshow") == 0) ? false : true;
 
+		if (movie.filename != filename)
+			// Not the movie we are looking for.
+			continue;
+
+		if (movie.name.empty())
+			// Use the filename if there is no pretty name.
+			movie.name = movie.filename;
+
 		_movies.push_back(movie);
+		return;
 	}
-	std::sort(_movies.begin(), _movies.end());
+
+	// We could not find the name of the current movie file in the game's
+	// resources. But it should be made available nevertheless.
+	MovieInfo movie;
+	movie.name = filename;
+	movie.filename = filename;
+	_movies.push_back(movie);
+}
+
+void MoviesMenu::listVideos() {
+	_listbox->lock();
+	_listbox->clear();
+
+	for (std::vector<MovieInfo>::const_iterator v = _movies.begin();
+		 v != _movies.end(); v++) {
+
+		_listbox->add(new WidgetListItemTextLine(*this, "dialogfont16x16", v->name));
+	}
+
+	_listbox->unlock();
+}
+
+void MoviesMenu::playSelection() {
+	playVideo(_movies[_listbox->getSelected()].filename);
 }
 
 } // End of namespace KotOR

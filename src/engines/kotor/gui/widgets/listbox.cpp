@@ -27,20 +27,477 @@
  *  A KotOR listbox widget.
  */
 
+#include "common/util.h"
+#include "common/error.h"
+#include "common/ustring.h"
+
+#include "graphics/graphics.h"
+#include "graphics/font.h"
+
+#include "graphics/aurora/modelnode.h"
+#include "graphics/aurora/model.h"
+#include "graphics/aurora/text.h"
+#include "graphics/aurora/fontman.h"
+
 #include "engines/kotor/gui/widgets/listbox.h"
 
 namespace Engines {
 
 namespace KotOR {
 
+WidgetListItem::WidgetListItem(::Engines::GUI &gui) : KotORWidget(gui, ""), _state(false) {
+}
+
+WidgetListItem::~WidgetListItem() {
+}
+
+void WidgetListItem::mouseUp(uint8 state, float x, float y) {
+	if (isDisabled())
+		return;
+
+	if (state != SDL_BUTTON_LMASK)
+		return;
+
+	activate();
+}
+
+void WidgetListItem::mouseDown(uint8 state, float x, float y) {
+	if (isDisabled())
+		return;
+
+	if ((state == SDL_BUTTON_WHEELUP) || (state == SDL_BUTTON_WHEELDOWN)) {
+		if (_owner)
+			_owner->mouseDown(state, x, y);
+		return;
+	}
+}
+
+void WidgetListItem::mouseDblClick(uint8 state, float x, float y) {
+	if (isDisabled())
+		return;
+
+	if (state == SDL_BUTTON_LMASK) {
+		WidgetListBox *ownerList = dynamic_cast<WidgetListBox *>(_owner);
+		if (ownerList)
+			ownerList->itemDblClicked();
+	}
+}
+
+void WidgetListItem::select() {
+	if (isDisabled())
+		return;
+
+	activate();
+}
+
+bool WidgetListItem::getState() {
+	return _state;
+}
+
+bool WidgetListItem::activate() {
+	if (_state)
+		return false;
+
+	WidgetListBox *ownerList = dynamic_cast<WidgetListBox *>(_owner);
+	if (!ownerList || (ownerList->getMode() != WidgetListBox::kModeSelectable))
+		return false;
+
+	_state = true;
+
+	setActive(true);
+
+	return true;
+}
+
+bool WidgetListItem::deactivate() {
+	if (!_state)
+		return false;
+
+	WidgetListBox *ownerList = dynamic_cast<WidgetListBox *>(_owner);
+	if (!ownerList || (ownerList->getMode() != WidgetListBox::kModeSelectable))
+		return false;
+
+	_state = false;
+
+	return true;
+}
+
+void WidgetListItem::signalGroupMemberActive() {
+	KotORWidget::signalGroupMemberActive();
+
+	deactivate();
+}
+
+
+WidgetListItemTextLine::WidgetListItemTextLine(::Engines::GUI &gui,
+	const Common::UString &font, const Common::UString &text, float spacing) :
+	WidgetListItem(gui),
+	_uR(1.0), _uG(1.0), _uB(1.0), _uA(1.0),
+	_sR(1.0), _sG(1.0), _sB(0.0), _sA(1.0), _spacing(spacing) {
+
+	Graphics::Aurora::FontHandle f = FontMan.get(font);
+
+	_fontHeight = f.getFont().getHeight();
+
+	_text = new Graphics::Aurora::Text(f, text, _uR, _uG, _uB, _uA, 0.0);
+
+	_text->setClickable(true);
+}
+
+WidgetListItemTextLine::~WidgetListItemTextLine() {
+	delete _text;
+}
+
+void WidgetListItemTextLine::show() {
+	_text->show();
+}
+
+void WidgetListItemTextLine::hide() {
+	_text->hide();
+}
+
+void WidgetListItemTextLine::setPosition(float x, float y, float z) {
+	KotORWidget::setPosition(x, y, z);
+
+	getPosition(x, y, z);
+	_text->setPosition(x, y, z);
+}
+
+void WidgetListItemTextLine::setUnselectedColor(float r, float g, float b, float a) {
+	_uR = r;
+	_uG = g;
+	_uB = b;
+	_uA = a;
+
+	if (!getState())
+		_text->setColor(_uR, _uG, _uB, _uA);
+}
+
+void WidgetListItemTextLine::setSelectedColor(float r, float g, float b, float a) {
+	_sR = r;
+	_sG = g;
+	_sB = b;
+	_sA = a;
+
+	if (getState())
+		_text->setColor(_sR, _sG, _sB, _sA);
+}
+
+float WidgetListItemTextLine::getWidth() const {
+	return _text->getWidth();
+}
+
+float WidgetListItemTextLine::getHeight() const {
+	if (_text->isEmpty())
+		return _fontHeight + _spacing;
+
+	return _text->getHeight() + _spacing;
+}
+
+void WidgetListItemTextLine::setTag(const Common::UString &tag) {
+	WidgetListItem::setTag(tag);
+
+	_text->setTag(tag);
+}
+
+bool WidgetListItemTextLine::activate() {
+	if (!WidgetListItem::activate())
+		return false;
+
+	_text->setColor(_sR, _sG, _sB, _sA);
+
+	return true;
+}
+
+bool WidgetListItemTextLine::deactivate() {
+	if (!WidgetListItem::deactivate())
+		return false;
+
+	_text->setColor(_uR, _uG, _uB, _uA);
+
+	return true;
+}
+
+
 WidgetListBox::WidgetListBox(::Engines::GUI &gui, const Common::UString &tag) :
-	KotORWidget(gui, tag) {
+	KotORWidget(gui, tag),
+	_mode(kModeSelectable), _contentX(0.0), _contentY(0.0), _contentZ(0.0),
+	_dblClicked(false), _startItem(0), _selectedItem(0xFFFFFFFF), _locked(false) {
+
+	getProperties();
 }
 
 WidgetListBox::~WidgetListBox() {
 }
 
-void WidgetListBox::load(const Aurora::GFFStruct &gff) {
+void WidgetListBox::getProperties() {
+	// TODO: Hardcoding is evil.
+	_contentWidth  = 400;
+	_contentHeight = 300;
+}
+
+WidgetListBox::Mode WidgetListBox::getMode() const {
+	return _mode;
+}
+
+void WidgetListBox::setMode(Mode mode) {
+	_mode = mode;
+}
+
+void WidgetListBox::show() {
+	KotORWidget::show();
+
+	// Show the visible items
+	for (std::vector<WidgetListItem *>::iterator v = _visibleItems.begin(); v != _visibleItems.end(); ++v)
+		(*v)->show();
+}
+
+void WidgetListBox::hide() {
+	KotORWidget::hide();
+
+	// Hide the visible items
+	for (std::vector<WidgetListItem *>::iterator v = _visibleItems.begin(); v != _visibleItems.end(); ++v)
+		(*v)->hide();
+}
+
+void WidgetListBox::setPosition(float x, float y, float z) {
+	float oX, oY, oZ;
+	getPosition(oX, oY, oZ);
+
+	KotORWidget::setPosition(x, y, z);
+
+	float nX, nY, nZ;
+	getPosition(nX, nY, nZ);
+
+	getPosition(x, y, z);
+	for (std::list<Widget *>::iterator it = _subWidgets.begin(); it != _subWidgets.end(); ++it) {
+		float sX, sY, sZ;
+		(*it)->getPosition(sX, sY, sZ);
+
+		sX -= oX;
+		sY -= oY;
+		sZ -= oZ;
+
+		(*it)->setPosition(sX + nX, sY + nY, sZ + nZ);
+	}
+
+	_contentX = _contentX - oX + nX;
+	_contentY = _contentY - oY + nY;
+	_contentZ = _contentZ - oZ + nZ;
+}
+
+float WidgetListBox::getContentWidth() const {
+	return _contentWidth;
+}
+
+float WidgetListBox::getContentHeight() const {
+	return _contentHeight;
+}
+
+void WidgetListBox::lock() {
+	assert(!_locked);
+	_locked = true;
+
+	GfxMan.lockFrame();
+}
+
+void WidgetListBox::clear() {
+	assert(_locked);
+
+	for (std::vector<WidgetListItem *>::iterator v = _visibleItems.begin(); v != _visibleItems.end(); ++v)
+		(*v)->hide();
+	_visibleItems.clear();
+
+	for (std::vector<WidgetListItem *>::iterator i = _items.begin(); i != _items.end(); ++i)
+		(*i)->remove();
+	_items.clear();
+
+	_startItem    = 0;
+	_selectedItem = 0xFFFFFFFF;
+}
+
+void WidgetListBox::reserve(uint n) {
+	assert(_locked);
+
+	_items.reserve(n);
+}
+
+void WidgetListBox::add(WidgetListItem *item) {
+	assert(_locked);
+
+	if (!_items.empty())
+		if (round(item->getHeight()) != round(_items.front()->getHeight()))
+			throw Common::Exception("WidgetListBox item sizes mismatch");
+
+	item->_itemNumber = _items.size();
+
+	item->setTag(Common::UString::sprintf("%s#Item%d", getTag().c_str(), _items.size()));
+
+	for (std::vector<WidgetListItem *>::iterator i = _items.begin(); i != _items.end(); ++i) {
+		(*i)->addGroupMember(*item);
+		item->addGroupMember(**i);
+	}
+
+	_items.push_back(item);
+
+	addSub(*item);
+}
+
+void WidgetListBox::unlock() {
+	assert(_locked);
+	_locked = false;
+
+	if (_items.empty()) {
+		GfxMan.unlockFrame();
+		return;
+	}
+
+	uint count = MIN<uint>(_contentHeight / _items.front()->getHeight(), _items.size());
+	if ((count == 0) || (count == _visibleItems.size())) {
+		GfxMan.unlockFrame();
+		return;
+	}
+
+	assert(_visibleItems.size() < count);
+
+	_visibleItems.reserve(count);
+
+	uint start = _startItem + _visibleItems.size();
+
+	float itemHeight = _items.front()->getHeight();
+	while (_visibleItems.size() < count) {
+		WidgetListItem *item = _items[start++];
+
+		float itemY = _contentY - (_visibleItems.size() + 1) * itemHeight;
+		item->setPosition(_contentX, itemY, _contentZ - 5.0);
+
+		_visibleItems.push_back(item);
+		if (isVisible())
+			_visibleItems.back()->show();
+	}
+
+	GfxMan.unlockFrame();
+}
+
+void WidgetListBox::setText(const Common::UString &font,
+							const Common::UString &text, float spacing) {
+
+	lock();
+	clear();
+
+	Graphics::Aurora::FontHandle f = FontMan.get(font);
+	std::vector<Common::UString> lines;
+	f.getFont().split(text, lines, getContentWidth());
+
+	for (std::vector<Common::UString>::iterator l = lines.begin(); l != lines.end(); ++l)
+		add(new WidgetListItemTextLine(*_gui, font, *l, spacing));
+
+	unlock();
+}
+
+void WidgetListBox::updateVisible() {
+	if (_visibleItems.empty())
+		return;
+
+	GfxMan.lockFrame();
+
+	for (uint i = 0; i < _visibleItems.size(); i++)
+		_visibleItems[i]->hide();
+
+	float itemHeight = _items.front()->getHeight();
+	float itemY      = _contentY;
+	for (uint i = 0; i < _visibleItems.size(); i++) {
+		WidgetListItem *item = _items[_startItem + i];
+
+		itemY -= itemHeight;
+
+		item->setPosition(_contentX, itemY, _contentZ - 5.0);
+		_visibleItems[i] = item;
+
+		if (isVisible())
+			_visibleItems[i]->show();
+	}
+
+	GfxMan.unlockFrame();
+}
+
+void WidgetListBox::itemDblClicked() {
+	_dblClicked = true;
+
+	setActive(true);
+}
+
+void WidgetListBox::scrollUp(uint n) {
+	if (_visibleItems.empty())
+		return;
+
+	if (_startItem == 0)
+		return;
+
+	_startItem -= MIN<uint>(n, _startItem);
+
+	updateVisible();
+}
+
+void WidgetListBox::scrollDown(uint n) {
+	if (_visibleItems.empty())
+		return;
+
+	if (_startItem + _visibleItems.size() >= _items.size())
+		return;
+
+	_startItem += MIN<uint>(n, _items.size() - _visibleItems.size() - _startItem);
+
+	updateVisible();
+}
+
+void WidgetListBox::select(uint item) {
+	if (item >= _items.size())
+		return;
+
+	_items[item]->select();
+	_selectedItem = item;
+}
+
+uint WidgetListBox::getSelected() const {
+	return _selectedItem;
+}
+
+bool WidgetListBox::wasDblClicked() {
+	bool dblClicked = _dblClicked;
+
+	_dblClicked = false;
+
+	return dblClicked;
+}
+
+void WidgetListBox::subActive(Widget &widget) {
+	WidgetListItem *listItem = dynamic_cast<WidgetListItem *>(&widget);
+	if (listItem) {
+		if (_selectedItem != listItem->_itemNumber) {
+			_selectedItem = listItem->_itemNumber;
+			setActive(true);
+		}
+	}
+
+}
+
+void WidgetListBox::mouseDown(uint8 state, float x, float y) {
+	if (isDisabled())
+		return;
+
+	if (state == SDL_BUTTON_WHEELUP) {
+		scrollUp(1);
+		return;
+	}
+
+	if (state == SDL_BUTTON_WHEELDOWN) {
+		scrollDown(1);
+		return;
+	}
+
+	float wX, wY, wZ;
+	getPosition(wX, wY, wZ);
 }
 
 } // End of namespace KotOR

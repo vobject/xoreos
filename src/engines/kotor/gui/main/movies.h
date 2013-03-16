@@ -43,20 +43,28 @@ public:
 	~MoviesMenu();
 
 protected:
+	void show();
+
 	void callbackActive(Widget &widget);
 
 private:
 	struct MovieInfo {
 		Common::UString name;
+		Common::UString filename;
 		uint32 order;
 		bool showAlways;
 
+		MovieInfo();
 		bool operator<(const MovieInfo &rhs) const;
 	};
 
+	WidgetListBox *_listbox;
 	std::vector<MovieInfo> _movies;
 
 	void updateMovies();
+	void addMovie(const Common::UString &filename);
+	void listVideos();
+	void playSelection();
 };
 
 } // End of namespace KotOR
