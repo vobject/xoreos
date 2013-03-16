@@ -50,6 +50,9 @@ class TwoDAFile;
 
 class TwoDARow {
 public:
+	/** Return the name of the row as a string. */
+	const Common::UString &getName() const;
+
 	/** Return the contents of a cell as a string. */
 	const Common::UString &getString(uint32 column) const;
 	/** Return the contents of a cell as a string. */
@@ -68,6 +71,7 @@ public:
 private:
 	TwoDAFile *_parent; ///< The parent 2DA.
 
+	Common::UString _name;
 	std::vector<Common::UString> _data;
 
 	TwoDARow(TwoDAFile &parent);
@@ -136,6 +140,7 @@ private:
 	// Binary loading helpers
 	void readHeaders2b (Common::SeekableReadStream &twoda);
 	void skipRowNames2b(Common::SeekableReadStream &twoda);
+	void readRowNames2b(Common::SeekableReadStream &twoda);
 	void readRows2b    (Common::SeekableReadStream &twoda);
 
 	void createHeaderMap();

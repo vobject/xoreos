@@ -48,6 +48,10 @@ TwoDARow::TwoDARow(TwoDAFile &parent) : _parent(&parent) {
 TwoDARow::~TwoDARow() {
 }
 
+const Common::UString &TwoDARow::getName() const {
+	return _name;
+}
+
 const Common::UString &TwoDARow::getString(uint32 column) const {
 	const Common::UString &cell = getCell(column);
 	if (cell.empty() || (cell == "****"))
@@ -178,7 +182,7 @@ void TwoDAFile::read2a(Common::SeekableReadStream &twoda) {
 
 void TwoDAFile::read2b(Common::SeekableReadStream &twoda) {
 	readHeaders2b(twoda);
-	skipRowNames2b(twoda);
+	readRowNames2b(twoda);
 	readRows2b(twoda);
 }
 
@@ -258,6 +262,22 @@ void TwoDAFile::skipRowNames2b(Common::SeekableReadStream &twoda) {
 	tokenize.skipToken(twoda, rowCount);
 }
 
+void TwoDAFile::readRowNames2b(Common::SeekableReadStream &twoda) {
+	uint32 rowCount = twoda.readUint32LE();
+	_rows.reserve(rowCount);
+
+	Common::StreamTokenizer tokenize(Common::StreamTokenizer::kRuleHeed);
+	tokenize.addSeparator('\t');
+	tokenize.addSeparator('\0');
+
+	for (uint32 i = 0; i < rowCount; i++) {
+		TwoDARow *row = new TwoDARow(*this);
+		row->_name = tokenize.getToken(twoda);
+
+		_rows.push_back(row);
+	}
+}
+
 void TwoDAFile::readRows2b(Common::SeekableReadStream &twoda) {
 	uint32 columnCount = _headers.size();
 	uint32 rowCount    = _rows.size();
@@ -277,8 +297,6 @@ void TwoDAFile::readRows2b(Common::SeekableReadStream &twoda) {
 	uint32 dataOffset = twoda.pos();
 
 	for (uint32 i = 0; i < rowCount; i++) {
-		_rows[i] = new TwoDARow(*this);
-
 		_rows[i]->_data.resize(columnCount);
 
 		for (uint32 j = 0; j < columnCount; j++) {
